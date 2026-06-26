@@ -5,8 +5,10 @@ import { useQuery } from '@tanstack/react-query'
 import { dashboardApi, agentApi } from '@/lib/api'
 import {
   CheckSquare, Clock, AlertTriangle, Users, Calendar,
-  TrendingUp, Zap, RefreshCw
+  TrendingUp, Zap, RefreshCw, Bell, ArrowRight
 } from 'lucide-react'
+import Link from 'next/link'
+import api from '@/lib/api'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -23,6 +25,13 @@ export default function DashboardPage() {
 
   const [briefing, setBriefing] = useState<string>('')
   const [briefingLoading, setBriefingLoading] = useState(false)
+
+  const { data: digestData } = useQuery({
+    queryKey: ['followup-digest'],
+    queryFn: () => api.get('/followup/digest').then(r => r.data),
+    refetchInterval: 5 * 60_000,
+    staleTime: 2 * 60_000,
+  })
 
   const stats = statsData
 
@@ -94,6 +103,23 @@ export default function DashboardPage() {
             <div className="text-sm text-blue-100 leading-relaxed prose-ai">
               <ReactMarkdown>{briefing}</ReactMarkdown>
             </div>
+          </div>
+        )}
+
+        {/* Follow-Up Digest Banner */}
+        {digestData && (digestData.counts?.overdue > 0 || digestData.counts?.at_risk > 0) && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-start gap-4">
+            <div className="flex items-center gap-2 text-amber-700 shrink-0">
+              <Bell className="w-5 h-5" />
+              <span className="font-semibold text-sm">Follow-Up Alert</span>
+            </div>
+            <div className="flex-1 text-sm text-amber-900 leading-relaxed whitespace-pre-wrap">
+              {digestData.digest}
+            </div>
+            <Link href="/followup"
+              className="shrink-0 flex items-center gap-1 text-xs font-medium text-amber-700 hover:text-amber-900 border border-amber-300 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition">
+              Full Report <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
         )}
 

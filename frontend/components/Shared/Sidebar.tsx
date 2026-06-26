@@ -5,13 +5,14 @@ import { usePathname } from 'next/navigation'
 import { useAuthStore, useUIStore } from '@/lib/store'
 import {
   LayoutDashboard, CheckSquare, Users, Calendar, MessageSquare,
-  FileText, Shield, BarChart3, LogOut, ChevronLeft, GraduationCap, Bot
+  FileText, Shield, BarChart3, LogOut, ChevronLeft, GraduationCap, Bot, Bell
 } from 'lucide-react'
 import clsx from 'clsx'
 
 const nav = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Tasks', href: '/tasks', icon: CheckSquare },
+  { label: 'Follow-Up', href: '/followup', icon: Bell },
   { label: 'Faculty', href: '/faculty', icon: Users },
   { label: 'Meetings', href: '/meetings', icon: Calendar },
   { label: 'AI Assistant', href: '/chat', icon: Bot },

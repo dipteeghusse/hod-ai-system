@@ -108,6 +108,24 @@ class AgentLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class FollowUpLog(Base):
+    """Persists each follow-up summary run so the HoD can review history."""
+    __tablename__ = "followup_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    generated_by_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    # Counts snapshot
+    overdue_count: Mapped[int] = mapped_column(Integer, default=0)
+    at_risk_count: Mapped[int] = mapped_column(Integer, default=0)
+    stale_count: Mapped[int] = mapped_column(Integer, default=0)
+    no_response_count: Mapped[int] = mapped_column(Integer, default=0)
+    # Full AI narrative
+    narrative: Mapped[str] = mapped_column(Text)
+    # Serialised classification data
+    detail: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 async def get_db():

@@ -11,7 +11,9 @@ from typing import Optional, List
 import uuid
 import json
 
-from database.db import get_db, User, Task, Meeting, FacultyActivity, AgentLog
+from database.db import get_db, User, Task, Meeting, FacultyActivity, AgentLog, FollowUpLog
+from agents.followup_agent import FollowUpAgent
+from agents.hod_assistant_agent import HoDAssistantAgent
 from models.schemas import (
     UserCreate, UserLogin, UserResponse, Token,
     TaskCreate, TaskUpdate, TaskResponse,
@@ -377,6 +379,148 @@ async def generate_report(request: ReportRequest, current_user: User = Depends(g
         context=context,
     )
     return {"report": result["response"], "type": request.report_type}
+
+
+# ── Follow-Up Routes ──────────────────────────────────────────────────────────
+
+_followup_agent = FollowUpAgent()
+_hod_assistant  = HoDAssistantAgent()
+
+
+def _task_rows_to_dicts(tasks) -> list:
+    """Convert SQLAlchemy Task rows to plain dicts for the follow-up agent."""
+    rows = []
+    for t in tasks:
+        rows.append({
+            "id":                  t.id,
+            "title":               t.title,
+            "description":         t.description,
+            "status":              t.status,
+            "priority":            t.priority,
+            "category":            t.category,
+            "subject":             getattr(t, "subject", None),
+            "due_date":            t.due_date.isoformat() if t.due_date else None,
+            "updated_at":          t.updated_at.isoformat() if t.updated_at else None,
+            "created_at":          t.created_at.isoformat() if t.created_at else None,
+            "assigned_to_id":      t.assigned_to_id,
+            "assigned_to_name":    t.assignee.name if t.assignee else None,
+            "progress_percentage": t.progress_percentage,
+        })
+    return rows
+
+
+@router.get("/followup/summary")
+async def followup_summary(
+    at_risk_days: int = 3,
+    stale_days: int = 5,
+    save: bool = True,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Run the FollowUpAgent over ALL tasks and return:
+      - classified buckets (overdue, at_risk, stale, no_response)
+      - faculty follow-up map
+      - AI narrative summary
+    Optionally persists the result to followup_logs.
+    """
+    task_rows = (await db.execute(
+        select(Task).where(Task.status != "completed")
+    )).scalars().all()
+
+    # Eager-load assignee names
+    from sqlalchemy.orm import selectinload
+    task_rows = (await db.execute(
+        select(Task)
+        .options(selectinload(Task.assignee))
+        .where(Task.status != "completed")
+    )).scalars().all()
+
+    tasks_dicts = _task_rows_to_dicts(task_rows)
+
+    agent = FollowUpAgent(at_risk_days=at_risk_days, stale_days=stale_days)
+    result = agent.full_summary(tasks_dicts)
+
+    if save:
+        counts = result.get("summary_counts", {})
+        log = FollowUpLog(
+            generated_by_id=current_user.id,
+            overdue_count=counts.get("overdue", 0),
+            at_risk_count=counts.get("at_risk", 0),
+            stale_count=counts.get("stale", 0),
+            no_response_count=counts.get("no_response", 0),
+            narrative=result.get("narrative", ""),
+            detail={
+                "overdue":   result.get("overdue", [])[:20],
+                "at_risk":   result.get("at_risk", [])[:20],
+                "stale":     result.get("stale", [])[:20],
+                "no_response": result.get("no_response", [])[:20],
+                "faculty_followup": result.get("faculty_followup", {}),
+            },
+        )
+        db.add(log)
+        await db.commit()
+
+    return result
+
+
+@router.get("/followup/history")
+async def followup_history(
+    limit: int = 10,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the last N follow-up summary runs."""
+    rows = (await db.execute(
+        select(FollowUpLog).order_by(FollowUpLog.created_at.desc()).limit(limit)
+    )).scalars().all()
+    return [
+        {
+            "id":               r.id,
+            "overdue_count":    r.overdue_count,
+            "at_risk_count":    r.at_risk_count,
+            "stale_count":      r.stale_count,
+            "no_response_count": r.no_response_count,
+            "narrative":        r.narrative,
+            "created_at":       r.created_at.isoformat(),
+        }
+        for r in rows
+    ]
+
+
+@router.post("/followup/message")
+async def draft_followup_message(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Draft a personalised follow-up message for one assignee.
+    Body: { assignee_name, task_titles: [], urgency: "high"|"medium"|"low" }
+    """
+    msg = _followup_agent.draft_followup_message(
+        assignee_name=body.get("assignee_name", "Faculty"),
+        task_titles=body.get("task_titles", []),
+        urgency=body.get("urgency", "high"),
+    )
+    return {"message": msg}
+
+
+@router.get("/followup/digest")
+async def followup_digest(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Quick bullet-point digest — top overdue + at-risk only, no DB save."""
+    from sqlalchemy.orm import selectinload
+    task_rows = (await db.execute(
+        select(Task)
+        .options(selectinload(Task.assignee))
+        .where(Task.status != "completed")
+    )).scalars().all()
+
+    classified = _followup_agent.classify_tasks(_task_rows_to_dicts(task_rows))
+    digest     = _hod_assistant.followup_digest(classified)
+    return {"digest": digest, "counts": classified["summary_counts"]}
 
 
 # ── WebSocket Chat ─────────────────────────────────────────────────────────────

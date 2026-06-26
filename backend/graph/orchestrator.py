@@ -17,6 +17,7 @@ from agents.meeting_manager_agent import MeetingManagerAgent
 from agents.email_intelligence_agent import EmailIntelligenceAgent
 from agents.nba_compliance_agent import NBAComplianceAgent
 from agents.report_generator_agent import ReportGeneratorAgent
+from agents.followup_agent import FollowUpAgent
 from agents.base_agent import get_llm
 from rag.retriever import rag_retriever
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -26,6 +27,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 _agents = {
     "hod_assistant": HoDAssistantAgent(),
+    "followup_agent": FollowUpAgent(),
     "task_planner": TaskPlannerAgent(),
     "task_allocator": TaskAllocationAgent(),
     "progress_tracker": ProgressTrackerAgent(),
@@ -42,9 +44,10 @@ Given a user query, select the single best agent to handle it.
 
 Agents:
 - hod_assistant: general HoD questions, daily briefings, priorities, decision support
+- followup_agent: follow-up summaries, overdue tasks, who hasn't responded, follow-up messages, stale tasks, at-risk tasks
 - task_planner: create task plans, plan from circulars/events, weekly/monthly planning
 - task_allocator: assign tasks to faculty, workload balancing, committee suggestions
-- progress_tracker: check task progress, overdue items, department health, status reports
+- progress_tracker: check task progress, department health, status reports
 - meeting_manager: schedule meetings, create agenda, generate MoM, track action items
 - email_intelligence: summarize emails, draft replies, extract tasks from emails
 - nba_compliance: NBA/NAAC compliance, CO-PO attainment, SAR, audit readiness
