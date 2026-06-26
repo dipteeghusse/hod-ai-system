@@ -8,7 +8,7 @@ import {
   TrendingUp, Zap, RefreshCw, Bell, ArrowRight
 } from 'lucide-react'
 import Link from 'next/link'
-import api from '@/lib/api'
+import { api } from '@/lib/api'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { useState } from 'react'
 import clsx from 'clsx'
