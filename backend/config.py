@@ -25,12 +25,21 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
 
-    # Email
+    # SMTP (outbound — optional)
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = ""
+
+    # IMAP (inbound — automated email recognition)
+    IMAP_HOST: str = "imap.gmail.com"
+    IMAP_PORT: int = 993
+    IMAP_USER: str = ""
+    IMAP_PASSWORD: str = ""
+    IMAP_FOLDER: str = "INBOX"
+    IMAP_POLL_INTERVAL: int = 300   # seconds between inbox checks
+    IMAP_MAX_EMAILS: int = 10       # max unread emails per poll
 
     # ── Institution (change these in .env to use for any college/dept) ────────
     APP_NAME: str = "HOD AI System"

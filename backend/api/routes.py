@@ -523,6 +523,38 @@ async def followup_digest(
     return {"digest": digest, "counts": classified["summary_counts"]}
 
 
+# ── Email Recognition Log ──────────────────────────────────────────────────────
+
+@router.get("/email/auto-log")
+async def email_auto_log(
+    limit: int = 20,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Return recent agent log entries created by the automated email poller.
+    Each entry shows the email subject, AI summary, and how many tasks were extracted.
+    """
+    rows = (await db.execute(
+        select(AgentLog)
+        .where(AgentLog.agent_type == "email_intelligence",
+               AgentLog.query.like("[AUTO]%"))
+        .order_by(AgentLog.created_at.desc())
+        .limit(limit)
+    )).scalars().all()
+
+    return [
+        {
+            "id":           r.id,
+            "subject":      r.query.removeprefix("[AUTO] "),
+            "summary":      r.response,
+            "actions":      r.actions_taken,
+            "created_at":   r.created_at.isoformat(),
+        }
+        for r in rows
+    ]
+
+
 # ── WebSocket Chat ─────────────────────────────────────────────────────────────
 
 active_connections: dict = {}

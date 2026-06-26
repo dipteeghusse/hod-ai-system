@@ -68,6 +68,56 @@ class EmailIntelligenceAgent(BaseAgent):
             context=f"Original Subject: {subject}\n\nOriginal Email:\n{body}",
         )
 
+    def process_email(self, full_email_text: str) -> dict:
+        """
+        Used by the automated email poller.
+        Accepts raw email text (From + Subject + body already joined).
+        Returns:
+          {
+            summary: str,
+            priority: str,
+            category: str,
+            extracted_tasks: [
+              { title, description, priority, category, deadline }
+            ],
+            draft_reply: str (if reply needed)
+          }
+        """
+        raw = self.invoke(
+            "This email was automatically fetched from the HoD's inbox. "
+            "Analyse it and return a JSON object with these exact keys:\n"
+            "{\n"
+            '  "summary": "<2-3 sentence summary>",\n'
+            '  "priority": "critical|high|medium|low",\n'
+            '  "category": "<category>",\n'
+            '  "requires_reply": true|false,\n'
+            '  "extracted_tasks": [\n'
+            '    {\n'
+            '      "title": "<short task title>",\n'
+            '      "description": "<what needs to be done>",\n'
+            '      "priority": "critical|high|medium|low",\n'
+            '      "category": "<task category>",\n'
+            '      "deadline": "<ISO date or null>"\n'
+            '    }\n'
+            '  ]\n'
+            "}\n"
+            "Return ONLY the JSON object — no markdown, no extra text.",
+            context=full_email_text,
+        )
+        try:
+            s, e = raw.find("{"), raw.rfind("}") + 1
+            if s >= 0 and e > s:
+                return json.loads(raw[s:e])
+        except Exception:
+            pass
+        return {
+            "summary": raw,
+            "priority": "medium",
+            "category": "administrative",
+            "requires_reply": False,
+            "extracted_tasks": [],
+        }
+
     def batch_summarize(self, emails: list) -> str:
         """
         emails: list of {sender, subject, body} — any content, any sender.

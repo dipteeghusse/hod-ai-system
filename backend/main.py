@@ -10,6 +10,7 @@ from config import settings
 from database.db import init_db
 from api.routes import router
 from rag.retriever import rag_retriever
+from services.email_poller import run_email_poller
 
 
 @asynccontextmanager
@@ -19,7 +20,14 @@ async def lifespan(app: FastAPI):
     print("✅ Database initialized")
     await rag_retriever.initialize()
     print("✅ RAG knowledge base loaded")
+
+    # Start email poller in background (no-op if IMAP_USER not set)
+    poller_task = asyncio.create_task(run_email_poller())
+    print("✅ Email poller started" if settings.IMAP_USER else "ℹ️  Email poller disabled (IMAP_USER not set)")
+
     yield
+
+    poller_task.cancel()
     print("🛑 Shutting down HOD AI System")
 
 
