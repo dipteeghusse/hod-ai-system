@@ -1,7 +1,8 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
+from config import settings
 
 
 # ── Enums ──────────────────────────────────────────────────────────────────────
@@ -92,9 +93,19 @@ class TaskCreate(BaseModel):
     assigned_to_id: Optional[int] = None
     priority: TaskPriority = TaskPriority.MEDIUM
     due_date: datetime
-    category: str = "general"
+    category: str = "general"   # any value from TASK_CATEGORIES in .env
+    subject: Optional[str] = None  # any course/subject name — free text
     tags: List[str] = []
     attachments: List[str] = []
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        allowed = settings.task_categories_list
+        if v and v not in allowed:
+            # Accept unknown categories gracefully — just normalise to lowercase
+            return v.lower().strip()
+        return v
 
 
 class TaskUpdate(BaseModel):

@@ -27,6 +27,29 @@ pwd_ctx = CryptContext(schemes=["bcrypt"])
 oauth2 = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
+# ── Public Config Endpoint ────────────────────────────────────────────────────
+
+@router.get("/config")
+async def get_config():
+    """
+    Returns all dynamic department configuration values.
+    Frontend uses this to populate dropdowns (categories, subjects, designations, etc.)
+    without hardcoding anything.
+    """
+    return {
+        "institution": settings.INSTITUTION,
+        "department": settings.DEPARTMENT,
+        "program_level": settings.PROGRAM_LEVEL,
+        "academic_year": settings.ACADEMIC_YEAR,
+        "accreditation_body": settings.ACCREDITATION_BODY,
+        "task_categories": settings.task_categories_list,
+        "subjects": settings.subjects_list,
+        "designations": settings.designations_list,
+        "activity_types": settings.activity_types_list,
+        "accreditation_criteria": settings.accreditation_criteria_dict,
+    }
+
+
 # ── Auth Helpers ───────────────────────────────────────────────────────────────
 
 def create_token(user_id: int, role: str) -> str:

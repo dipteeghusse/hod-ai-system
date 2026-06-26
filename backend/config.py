@@ -32,12 +32,53 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = ""
 
-    # App
-    APP_NAME: str = "HOD AI System - MITAOE CSE-AIML"
-    HOD_EMAIL: str = "hodaiml_AI@mitaoe.ac.in"
-    DEPARTMENT: str = "CSE (AI & ML)"
-    INSTITUTION: str = "MITAOE"
+    # ── Institution (change these in .env to use for any college/dept) ────────
+    APP_NAME: str = "HOD AI System"
+    HOD_EMAIL: str = "hod@institution.ac.in"
+    DEPARTMENT: str = "Computer Science & Engineering"
+    INSTITUTION: str = "My Institution"
     ACADEMIC_YEAR: str = "2025-26"
+    ACCREDITATION_BODY: str = "NBA"          # NBA | NAAC | ABET | AICTE
+    PROGRAM_LEVEL: str = "B.Tech"            # B.Tech | M.Tech | MCA | BCA
+
+    # ── Task categories (comma-separated, fully customisable) ─────────────────
+    TASK_CATEGORIES: str = (
+        "academic,research,administrative,examination,"
+        "accreditation,events,student_activities,laboratory,placement"
+    )
+
+    # ── Subject/Course list (comma-separated) — used by planner & compliance ──
+    SUBJECTS: str = (
+        "Data Structures,Algorithms,Database Management,Operating Systems,"
+        "Computer Networks,Software Engineering,Machine Learning,Web Technology"
+    )
+
+    # ── Accreditation criteria labels (pipe-separated key:label pairs) ────────
+    # Override in .env to match your accreditation body's exact criteria titles
+    ACCREDITATION_CRITERIA: str = (
+        "1:Vision Mission & PEOs|"
+        "2:Program Outcomes & Course Outcomes|"
+        "3:Curriculum & Teaching-Learning|"
+        "4:Students Performance|"
+        "5:Faculty Contributions|"
+        "6:Facilities & Technical Support|"
+        "7:Continuous Improvement|"
+        "8:First Year Academics"
+    )
+
+    # ── Faculty designation options (comma-separated) ─────────────────────────
+    DESIGNATIONS: str = (
+        "Professor,Associate Professor,Assistant Professor,"
+        "Senior Assistant Professor,Lab Instructor,Adjunct Faculty"
+    )
+
+    # ── Activity types for API/performance scoring ────────────────────────────
+    ACTIVITY_TYPES: str = (
+        "journal_publication,conference_paper,patent,funded_project,"
+        "fdp_attended,fdp_organized,guest_lecture,workshop,certification,"
+        "consultancy,phd_guidance,hackathon,industrial_visit"
+    )
+
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     # RAG
@@ -46,9 +87,35 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 1000
     CHUNK_OVERLAP: int = 200
 
+    # ── Derived helpers ───────────────────────────────────────────────────────
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",")]
+
+    @property
+    def task_categories_list(self) -> List[str]:
+        return [c.strip() for c in self.TASK_CATEGORIES.split(",")]
+
+    @property
+    def subjects_list(self) -> List[str]:
+        return [s.strip() for s in self.SUBJECTS.split(",")]
+
+    @property
+    def accreditation_criteria_dict(self) -> dict:
+        result = {}
+        for pair in self.ACCREDITATION_CRITERIA.split("|"):
+            if ":" in pair:
+                k, v = pair.split(":", 1)
+                result[k.strip()] = v.strip()
+        return result
+
+    @property
+    def designations_list(self) -> List[str]:
+        return [d.strip() for d in self.DESIGNATIONS.split(",")]
+
+    @property
+    def activity_types_list(self) -> List[str]:
+        return [a.strip() for a in self.ACTIVITY_TYPES.split(",")]
 
     class Config:
         env_file = ".env"
@@ -57,7 +124,6 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Configure LangSmith environment
 os.environ["LANGCHAIN_TRACING_V2"] = str(settings.LANGCHAIN_TRACING_V2).lower()
 os.environ["LANGCHAIN_API_KEY"] = settings.LANGCHAIN_API_KEY
 os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT

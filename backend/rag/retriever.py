@@ -1,81 +1,67 @@
-"""RAG retriever using FAISS + HuggingFace embeddings for department knowledge base."""
+"""
+RAG Retriever — FAISS + HuggingFace embeddings.
+The knowledge base is seeded from config values and any documents in rag/sample_docs/.
+No hardcoded institution/subject names.
+"""
 
-import os
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
-from langchain_community.document_loaders import (
-    PyPDFLoader, TextLoader, Docx2txtLoader
-)
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
 
 from config import settings
 
 
-KNOWLEDGE_BASE_DOCS = """
-MITAOE CSE (AI & ML) Department Knowledge Base
-
-ACADEMIC CALENDAR 2025-26:
-- Odd Semester: July 2025 - November 2025
-- Even Semester: December 2025 - April 2026
-- NBA Internal Audit: September 2025
-- NAAC Peer Team Visit: February 2026
-- End Semester Exams (Odd): November 2025
-- End Semester Exams (Even): April 2026
-- FDP Week: June 2026
-
-NBA/NAAC COMPLIANCE REQUIREMENTS:
-- Course files must be updated every semester with CO-PO mapping, question papers, sample answer books
-- Faculty API score should be maintained with evidence of publications, FDP, workshops
-- Student CO attainment must be ≥60% of students scoring ≥60%
-- Outcome Based Education (OBE) documentation required for all courses
-- Criteria 1: Curricular Aspects, Criteria 2: Teaching-Learning, Criteria 3: Research
-- Criteria 4: Infrastructure, Criteria 5: Student Support, Criteria 6: Governance
-- Criteria 7: Institutional Values
-
-FACULTY ROLES AND RESPONSIBILITIES:
-- Course Coordinator: Maintains course file, conducts COs attainment, prepares question papers
-- NBA Coordinator: Compiles SAR, organizes internal audits
-- Class Coordinator: Monitors attendance, coordinates with students
-- Lab Incharge: Manages lab equipment, schedules, maintenance
-- Placement Coordinator: Industry connect, internship drives, campus placement
-- Research Coordinator: Tracks publications, funded projects, patents
-- Activity Coordinator: Organizes events, workshops, competitions
+def _build_knowledge_base() -> str:
+    """Build the base knowledge document dynamically from config — no hardcoded values."""
+    criteria_lines = "\n".join(
+        f"  - Criterion {k}: {v}"
+        for k, v in settings.accreditation_criteria_dict.items()
+    )
+    return f"""
+Department Knowledge Base
+=========================
+Institution  : {settings.INSTITUTION}
+Department   : {settings.DEPARTMENT}
+Program      : {settings.PROGRAM_LEVEL}
+Academic Year: {settings.ACADEMIC_YEAR}
+Accreditation: {settings.ACCREDITATION_BODY}
 
 TASK CATEGORIES:
-- Academic: Teaching, Assessment, CO-PO mapping, Course files
-- Research: Publications, Projects, Patents, Consultancy
-- Administrative: Reports, Meetings, Circulars, Approvals
-- Student Activities: Attendance, Internships, Placements, Projects
-- NBA/NAAC: Compliance, Documentation, Audit preparation
-- Events: Workshops, FDPs, Guest Lectures, Industrial Visits
-- Examination: Question papers, Invigilation, Result processing
+{chr(10).join("  - " + c for c in settings.task_categories_list)}
 
-API SCORING (Faculty Performance):
-- Scopus/WoS Indexed Journal: 25 points per paper
-- UGC CARE List Journal: 15 points per paper
-- Conference (Scopus indexed): 20 points per paper
-- Conference (others): 5 points per paper
-- Patent Granted: 50 points
-- Patent Filed: 25 points
-- Funded Research Project (PI): 30 points
-- FDP/Workshop Organized (>5 days): 10 points
-- FDP Attended (>5 days): 5 points
-- PhD Awarded under Guidance: 40 points
+SUBJECTS / COURSES:
+{chr(10).join("  - " + s for s in settings.subjects_list)}
+
+FACULTY DESIGNATIONS:
+{chr(10).join("  - " + d for d in settings.designations_list)}
+
+ACTIVITY TYPES (for performance scoring):
+{chr(10).join("  - " + a for a in settings.activity_types_list)}
+
+{settings.ACCREDITATION_BODY} CRITERIA:
+{criteria_lines}
+
+GENERAL ACADEMIC NORMS:
+- Course files must be updated every semester with CO-PO mapping,
+  question papers, and sample answer books.
+- CO attainment target: ≥60% of students scoring ≥60% per CO.
+- Outcome-Based Education (OBE) documentation required for all courses.
+- Faculty API scoring follows UGC/AICTE norms unless institution specifies otherwise.
 
 REMINDER SCHEDULE:
-- Critical tasks: 7 days before, 3 days before, 1 day before, day of
-- Regular tasks: 3 days before, 1 day before, day of
-- Meetings: 1 day before, 1 hour before
-- Reports due: 7 days before, 3 days before
+- Critical tasks  : 7 days before, 3 days before, 1 day before, day of
+- Regular tasks   : 3 days before, 1 day before, day of
+- Meetings        : 1 day before, 1 hour before
+- Reports due     : 7 days before, 3 days before
 
-DEPARTMENT FACULTY WORKLOAD NORMS:
-- Maximum 16 hours teaching load per week per faculty
-- Minimum 2 publications per academic year (target)
-- Minimum 1 FDP/workshop attendance per semester
-- Course coordination for maximum 2 theory + 1 lab per semester
+FACULTY WORKLOAD NORMS:
+- Maximum ~16 lecture hours per week per faculty.
+- Course coordination: maximum 2 theory + 1 lab per semester.
+- Minimum 1 FDP/workshop attendance per semester.
 """
 
 
@@ -99,10 +85,14 @@ class RAGRetriever:
                 str(store_path), self.embeddings, allow_dangerous_deserialization=True
             )
         else:
-            await self._build_initial_store()
+            await self._build()
 
-    async def _build_initial_store(self):
-        docs = [Document(page_content=KNOWLEDGE_BASE_DOCS, metadata={"source": "department_kb"})]
+    async def _build(self):
+        docs = [Document(
+            page_content=_build_knowledge_base(),
+            metadata={"source": "department_config_kb"},
+        )]
+
         docs_dir = Path("./rag/sample_docs")
         if docs_dir.exists():
             for f in docs_dir.iterdir():
@@ -131,12 +121,21 @@ class RAGRetriever:
         return "\n\n".join(d.page_content for d in docs)
 
     def add_document(self, content: str, metadata: dict = {}):
+        """Add any new document (circular, policy, guideline) to the knowledge base."""
         chunks = self.splitter.split_documents(
             [Document(page_content=content, metadata=metadata)]
         )
         if self.vector_store:
             self.vector_store.add_documents(chunks)
             self.vector_store.save_local(settings.VECTOR_STORE_PATH)
+
+    def rebuild(self):
+        """Rebuild the vector store — call after changing config subjects/categories."""
+        import asyncio
+        if Path(settings.VECTOR_STORE_PATH).exists():
+            import shutil
+            shutil.rmtree(settings.VECTOR_STORE_PATH)
+        asyncio.run(self._build())
 
 
 rag_retriever = RAGRetriever()

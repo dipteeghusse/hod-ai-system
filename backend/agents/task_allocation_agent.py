@@ -1,66 +1,71 @@
-"""Task Allocation Agent — assigns tasks to faculty based on expertise and workload."""
+"""Task Allocation Agent — generic workload-aware assignment for any department."""
 
 import json
 from langchain_core.messages import SystemMessage, HumanMessage
 from langsmith import traceable
 from agents.base_agent import BaseAgent
+from config import settings
 
 
 class TaskAllocationAgent(BaseAgent):
     name = "task_allocator"
-    description = "Intelligently assigns tasks to faculty based on expertise, workload, and availability"
+    description = "Assigns tasks to staff based on expertise, workload, and availability"
 
     def __init__(self):
         super().__init__()
         self._system = self._system_prompt(
-            "You are the Task Allocation agent. Your job is to optimally assign departmental tasks "
-            "to faculty, lab assistants, office staff, and student coordinators. "
-            "Consider: expertise match, current workload, past performance, availability, and deadlines. "
-            "Always explain why you assigned a task to a specific person."
+            "You are the Task Allocation agent. Optimally assign departmental tasks to "
+            "faculty, lab assistants, office staff, and student coordinators.\n\n"
+            "Consider: expertise match, current workload, past performance, availability, "
+            "and deadline urgency. Always explain why each task was assigned to a specific person.\n\n"
+            "Staff roles available: faculty, lab_assistant, office_staff, student_coordinator, hod.\n"
+            "Do not assume fixed subjects or specialisations — use only what the user provides."
         )
 
     @traceable(name="task_allocation_agent")
     def invoke(self, query: str, context: str = "", history: list = []) -> str:
         messages = [
             SystemMessage(content=self._system),
-            HumanMessage(content=f"Staff Information:\n{context}\n\nAllocation Request: {query}"),
+            HumanMessage(content=f"Staff Information:\n{context}\n\nAllocation Request:\n{query}"),
         ]
-        response = self.llm.invoke(messages)
-        return response.content
+        return self.llm.invoke(messages).content
 
-    def allocate_tasks(self, tasks: list, faculty_profiles: list) -> dict:
-        faculty_str = json.dumps(faculty_profiles, indent=2)
-        tasks_str = json.dumps(tasks, indent=2)
-
+    def allocate_tasks(self, tasks: list, staff_profiles: list) -> dict:
+        """
+        tasks: list of dicts — {title, description, priority, category, deadline}
+        staff_profiles: list of dicts — {id, name, role, specialization, current_task_count}
+        """
         raw = self.invoke(
-            f"Allocate these tasks optimally among the faculty. Return a JSON list with "
-            f"task_id and assigned_faculty_id for each task, then provide reasoning:\n"
-            f"Tasks:\n{tasks_str}",
-            context=f"Available Faculty (with workload and expertise):\n{faculty_str}",
+            "Allocate these tasks optimally. Return a JSON list: "
+            "[{task_title, assigned_to_name, assigned_to_id, reason}]. "
+            "Then provide a plain-English reasoning summary.\n\n"
+            f"Tasks:\n{json.dumps(tasks, indent=2)}",
+            context=f"Available Staff:\n{json.dumps(staff_profiles, indent=2)}",
         )
-
         allocations = []
         try:
-            start = raw.find("[")
-            end = raw.rfind("]") + 1
-            if start >= 0 and end > start:
-                allocations = json.loads(raw[start:end])
+            s, e = raw.find("["), raw.rfind("]") + 1
+            if s >= 0 and e > s:
+                allocations = json.loads(raw[s:e])
         except Exception:
             pass
-
         return {"allocations": allocations, "reasoning": raw}
 
-    def balance_workload(self, faculty_workloads: list) -> str:
-        context = json.dumps(faculty_workloads, indent=2)
+    def balance_workload(self, staff_workloads: list) -> str:
+        """
+        staff_workloads: [{name, role, task_count, overdue_count, specialization}]
+        """
         return self.invoke(
-            "Analyze current faculty workload distribution. Identify overloaded faculty "
-            "and suggest task redistribution to balance workload fairly.",
-            context=context,
+            "Analyse the workload distribution below. Identify overloaded staff and "
+            "suggest specific task transfers to rebalance fairly.",
+            context=json.dumps(staff_workloads, indent=2),
         )
 
-    def suggest_committee_members(self, committee_type: str, faculty_list: list) -> str:
+    def suggest_committee(self, committee_name: str, purpose: str, staff_list: list) -> str:
+        """Generic committee suggestion — works for any committee name/purpose."""
         return self.invoke(
-            f"Suggest optimal members for the {committee_type} committee. "
-            "Consider expertise, existing committee memberships, and workload.",
-            context=json.dumps(faculty_list, indent=2),
+            f"Suggest members for the '{committee_name}' committee.\n"
+            f"Purpose: {purpose}\n"
+            "Consider existing committee load, expertise, and availability.",
+            context=json.dumps(staff_list, indent=2),
         )
