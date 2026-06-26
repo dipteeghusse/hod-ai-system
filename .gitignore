@@ -1,57 +1,122 @@
-# Python
+# ── Python ─────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyc
+*.pyd
+*.pyz
 venv/
 .venv/
 env/
+ENV/
 *.egg-info/
+*.egg
 dist/
 build/
 .eggs/
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Environment
+# ── Environment / Secrets ──────────────────────────────────────────────────────
 .env
-*.env
+.env.*
 !.env.example
+!.env.*.example
+*.pem
+*.key
+*.secret
+secrets/
 
-# Database
+# ── Database ───────────────────────────────────────────────────────────────────
 *.db
 *.sqlite
 *.sqlite3
+*.sql.bak
+/backend/hod_system.db
 
-# RAG vector store (rebuilt on start)
+# ── RAG / ML artifacts ─────────────────────────────────────────────────────────
 backend/rag/vector_store/
+*.faiss
+*.pkl
+*.bin
+models/
+*.pt
+*.pth
 
-# Node.js
+# ── Node.js / Next.js ──────────────────────────────────────────────────────────
 node_modules/
 .next/
 out/
 .npm/
 *.tsbuildinfo
 next-env.d.ts
+.cache/
+.parcel-cache/
+.turbo/
 
-# Frontend local env
+# ── Frontend local env ─────────────────────────────────────────────────────────
 frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
 frontend/.env.production
 
-# OS
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
+# ── Docker ─────────────────────────────────────────────────────────────────────
+.docker/
+docker-data/
+postgres-data/
+redis-data/
 
-# IDE
+# ── OS ─────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ── IDE / Editors ──────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.code-workspace
+*.sublime-project
+*.sublime-workspace
+.vim/
+.editorconfig
 
-# Logs
+# ── Logs ───────────────────────────────────────────────────────────────────────
 *.log
 logs/
+log/
 celerybeat-schedule
+celerybeat.pid
 
-# Test / coverage
+# ── Testing / Coverage ─────────────────────────────────────────────────────────
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+junit*.xml
+
+# ── Temporary files ────────────────────────────────────────────────────────────
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# ── CI/CD ──────────────────────────────────────────────────────────────────────
+.github/
+!.github/workflows/
+
+# ── Celery ─────────────────────────────────────────────────────────────────────
+celerybeat-schedule.db
+
